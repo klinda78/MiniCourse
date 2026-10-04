@@ -1,0 +1,7 @@
+interface:
+  display_name: "MiniCourse Generator Agent"
+  short_description: "Orchestrate validated MiniCourse generation through CLI"
+  default_prompt: "Use $minicourse-generator-agent to generate a MiniCourse through the installed v2 CLI."
+
+policy:
+  allow_implicit_invocation: true
