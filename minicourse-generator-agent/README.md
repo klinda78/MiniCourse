@@ -1,12 +1,13 @@
 # MiniCourse Generator Agent Skill
 
-这是一个面向 Agent 的 MiniCourse Generator v2 薄适配器。它只负责收集学习意图、调用本机 Generator CLI、等待用户确认完整课程大纲、按 Stage 生成课程，并解释 CLI 返回的 JSON 结果。
+这是 Generator v2 的薄 Agent 适配器，完整 bundle 同时包含 Skill 和已通过 Windows Runner 的 CLI。
 
-课程规划 Prompt、Provider 调用、协议编译、图片处理、校验、哈希和 ZIP 构建都由 `learning-by-card-generator-cli.exe` 负责，本 Skill 不重复实现这些逻辑。
-
-## 目录
+## Bundle 内容
 
 ```text
+bin/
+└─ learning-by-card-generator-cli.exe
+
 minicourse-generator-agent/
 ├─ SKILL.md
 ├─ README.md
@@ -17,46 +18,16 @@ minicourse-generator-agent/
    └─ result-schema.md
 ```
 
-## 使用前提
+CLI 来源：提交 `c7f0632`，Windows Runner `37133423405`，版本 `generator-core.v0.6`。
 
-需要安装 Generator Windows CLI：
+## 使用方式
 
-```text
-learning-by-card-generator-cli.exe
-```
+Skill 首先调用 `version --json`，随后所有课程生产命令都显式使用 `--protocol v2`。它先生成完整大纲并等待确认，只生成当前 Stage；后续 Stage 必须由用户明确要求 `Continue`。
 
-Agent 应优先使用显式配置的 CLI 路径；没有配置时使用安装程序提供的固定路径。不要扫描整个磁盘，也不要静默修改系统 `PATH`。
+Skill 直接调用 bundle 中的 CLI，保留它的 JSON 错误和退出码。CLI 缺失、启动失败、空响应或非法 JSON 由 Agent 统一报告，stderr 不直接返回到对话中。
 
-启动时依次检查：
+Provider 密钥不进入 Skill、参数、请求 JSON、Session 或 CoursePack。此 CLI 版本从启动进程已有的环境变量读取 Provider 凭据；缺少凭据时会返回错误，Skill 不会要求用户把密钥粘贴到对话中。
 
-```powershell
-learning-by-card-generator-cli.exe version --json
-learning-by-card-generator-cli.exe capabilities --json
-learning-by-card-generator-cli.exe license status --json
-learning-by-card-generator-cli.exe provider status --json
-```
+## 当前边界
 
-## 生成流程
-
-1. 收集并确认四项信息：当前基础、学习目标、知识类型、应用场景。
-2. 调用 `plan --protocol v2`，展示完整课程大纲和 Stage 边界。
-3. 等待用户明确确认，不能自动进入生成阶段。
-4. 调用 `confirm-plan --protocol v2` 和第一阶段的 `generate-stage --protocol v2`。
-5. 只有 CLI 返回 `stage_completed` 或 `course_completed` 时，才能返回 CoursePack 路径。
-6. 用户明确说“继续”后，读取持久化 Session，再调用 `continue --protocol v2`。
-
-每个 Stage 最多五节课；后续 Stage 必须由用户明确 Continue。重复请求使用新的幂等键，并以持久化 Session 为准，不能依赖对话记忆决定下一阶段。
-
-## 安全边界
-
-- 不向用户索要或在 JSON 中写入 Provider API Key。
-- 不把 License 内容、Provider 响应、Prompt、临时图片 URL 或 Session 内部数据写入 CoursePack。
-- 不从计划、草稿或未验证 ZIP 声称课程已完成。
-- 不执行课程中 `code` 或 `terminal` block 的内容。
-- 不修改项目中的冻结 Skill：`minicourse-generator` 和 `minicourse-generator-v2`。
-
-## 分发
-
-完整 Skill 可直接使用本目录；也可以使用仓库根目录提供的 `minicourse-generator-agent.bundle.zip` 进行分发。
-
-详细接口请阅读 `references/` 下的三份契约文件。
+本 bundle 使用已验证的 c7f0632 CLI，不新增 `capabilities`、`license status` 或 `provider status` 命令，也不重新运行 Windows Runner。

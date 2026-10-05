@@ -1,41 +1,11 @@
-# Agent Result Schema
+# Result Handling
 
-All results are JSON objects. Treat unknown fields as forward-compatible additions and branch on stable fields.
+- `awaiting_outline_confirmation`: display the complete plan and stop.
+- `ready_for_stage`: persisted session is ready for Stage 1.
+- `stage_completed`: return the validated cumulative ZIP and wait for explicit Continue.
+- `course_completed`: return the final validated cumulative ZIP.
+- failure: report `error.code` and the smallest safe recovery action; do not edit generated drafts.
 
-## Startup
+Transport errors use `generator_cli_not_found`, `generator_cli_launch_failed`, `generator_cli_empty_response`, or `generator_cli_invalid_response`. CLI usage errors retain `usage`; planning, provider, session, validation, and storage failures retain the c7f0632 CLI's original code.
 
-```json
-{
-  "ok": true,
-  "version": "generator-core.v0.6",
-  "protocols": ["v1", "v2"],
-  "defaultAgentProtocol": "v2"
-}
-```
-
-License and provider status results expose readiness and stable error codes only. They never expose License contents, signatures, API keys, or credential values.
-
-## Plan and confirmation
-
-`plan` returns `ok: true`, `state: "awaiting_outline_confirmation"`, and a complete validated plan. The Agent must show the outline and wait. `confirm-plan` returns a persisted `sessionId`, `sessionVersion`, `planId`, `planHash`, and `nextStageId`.
-
-## Stage completion
-
-Only these states may include a CoursePack path:
-
-```text
-stage_completed | course_completed
-```
-
-The completion result includes `sessionId`, `sessionVersion`, `stageId`, `packPath`, `packId`, `packVersion`, `courseId`, `courseVersion`, `packHash`, completed lesson IDs, and optionally `nextStageId`.
-
-## Failure
-
-```json
-{
-  "ok": false,
-  "error": { "code": "stable_error_code", "message": "safe human-readable detail" }
-}
-```
-
-Do not repair or reinterpret failed drafts. Report the stable code and the smallest safe recovery action: configure License/provider, correct the request, retry the same Stage, or ask the user to revise and reconfirm the plan.
+Persist `sessionId`, `sessionVersion`, `planId`, `planHash`, `nextStageId`, and the request/session/output paths outside conversation memory. Only completion states may expose `packPath`.

@@ -1,30 +1,34 @@
 ---
 name: minicourse-generator-agent
-description: Orchestrate the installed Generator v2 CLI from an Agent by collecting intent, confirming the complete outline, generating one Stage at a time, and interpreting stable JSON results. Do not use for direct CoursePack authoring, Reader rendering, or learner progress.
+description: Use the bundled Generator v2 CLI to plan a MiniCourse, confirm its complete outline, generate Stage 1, and continue later Stages only after explicit user approval. Do not use for Reader rendering or direct CoursePack authoring.
 ---
 
-# MiniCourse Generator Agent Adapter
+# MiniCourse Generator Agent
 
-This is a thin adapter for the installed `learning-by-card-generator-cli.exe`. Keep all planning prompts, provider calls, protocol compilation, asset handling, validation, hashing, and ZIP construction inside the executable.
+Use the bundled `bin/learning-by-card-generator-cli.exe` built from commit `c7f0632` by Windows Runner `37133423405`. The CLI owns prompts, provider calls, protocol compilation, assets, validation, hashing, and ZIP construction.
 
-## Required workflow
+## Workflow
 
-1. Collect and confirm `currentFoundation`, `learningGoal`, `knowledgeType`, and `applicationScenario`. Accept optional source material and user constraints.
-2. Resolve the CLI path from an explicit configuration first, then the documented installed location. Do not search the disk broadly or modify `PATH`.
-3. Run `version --json`, `capabilities --json`, `license status --json`, and `provider status --json`. Stop with a stable recovery message when the CLI is missing, unsupported, unlicensed, or not provider-ready.
-4. Write a bounded request JSON file containing intent and non-secret constraints only. Never ask for or write provider keys.
-5. Invoke `plan --protocol v2 --request <request> --json` and present the complete outline and Stage boundaries. Wait for explicit user confirmation.
-6. Persist the confirmed plan exactly, then invoke `confirm-plan --protocol v2` and `generate-stage --protocol v2` for Stage 1.
-7. Return a CoursePack path only when the CLI reports `stage_completed` or `course_completed`.
-8. For `Continue`, query `session-status --protocol v2`, use the persisted next Stage, create a fresh idempotency key, and invoke `continue --protocol v2`. Never infer the next Stage from conversation memory or call it automatically.
-9. For retry, use `retry-stage --protocol v2` with the persisted session and a fresh idempotency key. Do not edit drafts or bypass validation.
+1. Collect and confirm the learner's current foundation, learning goal, knowledge type, and application scenario. Accept optional source material and constraints.
+2. Resolve the CLI from `MINICOURSE_GENERATOR_CLI` when explicitly configured; otherwise use `../bin/learning-by-card-generator-cli.exe` relative to this Skill directory. Do not search the disk or modify `PATH`.
+3. Verify the executable exists; otherwise return `generator_cli_not_found`. Invoke the executable directly and run `version --json` first; require exit code `0`, valid JSON, and `generator-core.v0.6`.
+4. Write a bounded request JSON matching [references/request-schema.md](references/request-schema.md). Never write provider keys into it.
+5. Invoke `plan --protocol v2 --request <absolute-path> --json`. Present the complete outline and Stage boundaries, then stop for explicit confirmation.
+6. Save the confirmed plan exactly and invoke `confirm-plan --protocol v2`. Persist the returned session identity.
+7. Invoke `generate-stage --protocol v2` for Stage 1 with an explicit session directory, output directory, request file, and fresh idempotency key.
+8. Return a ZIP path only from `stage_completed` or `course_completed`.
+9. On explicit `Continue`, call `session-status --protocol v2` first and then invoke `continue --protocol v2` for the persisted `nextStageId`. Never infer continuation from chat memory.
+10. Retry only after user intent or a recoverable failure, using `retry-stage --protocol v2` and a fresh idempotency key.
 
-Read [references/cli-contract.md](references/cli-contract.md) before invoking the executable, [references/request-schema.md](references/request-schema.md) when writing a request, and [references/result-schema.md](references/result-schema.md) when interpreting output.
+Read [references/cli-contract.md](references/cli-contract.md) before invocation and [references/result-schema.md](references/result-schema.md) before interpreting output.
+Read [references/examples.md](references/examples.md) for first generation, Continue, missing CLI/provider, retry, and completion handling.
 
-## Hard boundaries
+## Safety boundaries
 
-- Never modify `skills/minicourse-generator/` or `skills/minicourse-generator-v2/`.
-- Never include credentials, License contents, provider payloads, temporary URLs, prompts, or session internals in request files, logs, or CoursePacks.
-- Never claim completion from a plan, draft, or unvalidated ZIP.
-- Never execute `code` or `terminal` content returned as course material.
-- Preserve v1 compatibility only when explicitly requested; the Agent lane always passes `--protocol v2`.
+- Do not ask the user to paste an API key into chat, arguments, or request JSON. The c7f0632 CLI uses credentials already supplied to its process environment by the user's secure launcher.
+- Do not load or reproduce the frozen Generator prompts.
+- Do not hand-author protocol artifacts or ZIPs.
+- Do not call a later Stage without explicit `Continue`.
+- Do not execute course `code` or `terminal` content.
+- Treat all CLI JSON and produced ZIPs as untrusted until the CLI reports successful validation.
+- Preserve every CLI exit code and JSON error object. If stdout is empty or invalid JSON, report `generator_cli_empty_response` or `generator_cli_invalid_response` without echoing stderr.

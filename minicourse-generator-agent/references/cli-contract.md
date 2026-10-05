@@ -1,39 +1,28 @@
-# Generator Agent CLI Contract
+# CLI Contract
 
-## Executable and discovery
+Executable: `bin/learning-by-card-generator-cli.exe`, built from `c7f0632` by Run `37133423405`.
 
-The public executable is `learning-by-card-generator-cli.exe`. Use an explicit configured path when supplied; otherwise use the app-owned installed path documented by the Windows package. A portable/Runner copy may be selected by an explicit override. Do not scan arbitrary disks or modify the system `PATH`.
-
-Every invocation writes exactly one JSON result object to stdout. Diagnostics, if any, belong on stderr and must be redacted.
-
-## Startup checks
-
-```powershell
-learning-by-card-generator-cli.exe version --json
-learning-by-card-generator-cli.exe capabilities --json
-learning-by-card-generator-cli.exe license status --json
-learning-by-card-generator-cli.exe provider status --json
-```
-
-The Agent lane requires `defaultAgentProtocol: "v2"`, support for `v2`, a ready License, and a ready provider configuration before starting production.
-
-## Production commands
+Supported Agent operations:
 
 ```text
+version --json
 plan --protocol v2 --request <request.json> --json
-confirm-plan --protocol v2 --plan <plan.json> --session-dir <dir> --json
-generate-stage --protocol v2 --session <id> --session-dir <dir> --request <request.json> --output <dir> --idempotency-key <key> --json
-session-status --protocol v2 --session <id> --session-dir <dir> --json
-continue --protocol v2 --session <id> --session-dir <dir> --request <request.json> --output <dir> --idempotency-key <key> --json
-retry-stage --protocol v2 --session <id> --session-dir <dir> --request <request.json> --output <dir> --idempotency-key <key> --json
+confirm-plan --protocol v2 --plan <plan.json> --session-dir <directory> --json
+generate-stage --protocol v2 --session <id> --session-dir <directory> --request <request.json> --output <directory> --idempotency-key <key> --json
+session-status --protocol v2 --session <id> --session-dir <directory> --json
+continue --protocol v2 --session <id> --session-dir <directory> --request <request.json> --output <directory> --idempotency-key <key> --json
+retry-stage --protocol v2 --session <id> --session-dir <directory> --request <request.json> --output <directory> --idempotency-key <key> --json
 ```
 
-`compile` is a legacy/development command and is not the Agent course workflow. A later Stage requires explicit user `Continue`.
+Success exits `0`; usage errors exit `2`; generation and validation failures are non-zero. Parse the single JSON object from stdout and branch on `ok`, `state`, and `error.code`, not localized messages.
 
-## Exit codes
+The Agent adds these transport errors without changing the c7f0632 executable:
 
-- `0`: operation succeeded;
-- `2`: usage or argument error;
-- other non-zero values: stable License, provider, request/session, provider request, pack validation, storage, or internal failure.
+- `generator_cli_not_found` (`127`)
+- `generator_cli_launch_failed` (`126`)
+- `generator_cli_empty_response`
+- `generator_cli_invalid_response`
 
-Use the JSON `error.code` as the primary recovery signal. Never parse human-readable messages as protocol.
+When the CLI returns valid JSON, preserve its object and exit code. Invoke the exe directly so PowerShell does not reinterpret `--session`, `--session-dir`, or other double-hyphen arguments through a wrapper script.
+
+All paths must be explicit. Every Agent command passes `--protocol v2`; omission preserves the legacy v1 default and is not this Skill's workflow.
