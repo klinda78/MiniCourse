@@ -25,7 +25,7 @@ minicourse-generator-agent/
 
 ## 工作方式
 
-Skill 是 CLI 的薄适配器：收集并确认学习需求，调用 `plan --protocol v2` 生成完整大纲，等待用户明确确认后生成第一阶段4或5小节课程。后续的课程只有在用户明确要求 Continue 后才会继续生成。当CLI 返回 course_completed，全部课程生成完成。
+Skill 是 CLI 的薄适配器：收集并确认学习需求，调用 `plan --protocol v2` 生成完整大纲，等待用户明确确认后生成第一阶段4或5小节课程。后续的课程只有在用户明确要求 Continue 后才会继续生成。当CLI 返回  `course_completed`，全部课程生成完成。
 
 课程 Prompt、Provider 调用、协议编译、资源处理、校验、哈希和 CoursePack ZIP 构建都由 CLI 完成，Skill 不重复实现这些逻辑。
 
